@@ -7,7 +7,10 @@ import java.util.ArrayList;
 import java.util.*;
 
 public class DoYouEvenConnectAI extends CKPlayer {
-
+	private long startTime;
+	private long estimatedTime;
+	
+	private LinkedHashMap<BoardModel,Point> stateAndMoves = new LinkedHashMap<BoardModel, Point>();
 	public DoYouEvenConnectAI(byte player, BoardModel state) {
 		super(player, state);
 		teamName = "DoYouEvenConnectAI";
@@ -39,7 +42,8 @@ public class DoYouEvenConnectAI extends CKPlayer {
 	 */
 
 	@Override
-	public Point getMove(BoardModel state) {		
+	public Point getMove(BoardModel state) {
+		startTime = System.currentTimeMillis();
 		if (state.getLastMove() == null) {
 			return new Point(state.getWidth()/2, state.getHeight()/2);
 		}
@@ -49,7 +53,7 @@ public class DoYouEvenConnectAI extends CKPlayer {
 				move = mmsearch(state, 4);
 			}
 			else{
-				move = mmsearch(state, 4);
+				move = mmsearch(state, 75);
 			}
 			//			System.out.println(move);
 			return move; // temporary
@@ -276,14 +280,26 @@ public class DoYouEvenConnectAI extends CKPlayer {
 				firstPoint = p.get(i);
 			}
 		}
+//		List<Point> onlyMax = new Vector<Point>();
+//		onlyMax.add(firstPoint);
 		p.remove(firstPoint);
-		p.add(0, firstPoint);
+		p.add(0,firstPoint);
 		return p;
 	}
+	private BoardModel getLast(LinkedHashMap<BoardModel, Point> m){
+		BoardModel last = null;
+		for(BoardModel key : m.keySet()){
+			last = key;
+		}
+		return last;
+	}
+	
 
+	
 	public Point mmsearch(BoardModel state, int depth) {
-		System.out.println("Current State");
-		System.out.println(state);
+
+//		System.out.println("Current State");
+//		System.out.println(state);
 		int alpha = Integer.MIN_VALUE;
 		int beta = Integer.MAX_VALUE;
 		List<Point> p = possiblePoints(state);
@@ -291,8 +307,20 @@ public class DoYouEvenConnectAI extends CKPlayer {
 		Point maxP = p.get(0);
 		BoardModel originalState = state.clone();
 		p = findMaxReturnList(originalState, p);
-		System.out.println(p);
-		System.out.println();
+//		System.out.println(p);
+//		System.out.println();
+		if(!stateAndMoves.isEmpty()){
+			Point move = stateAndMoves.get(state);
+			if(move != null){
+				state = getLast(stateAndMoves);
+				minValue(state, depth, alpha, beta);
+				return move;
+			}
+			else{
+				//if opponent makes a move not expected
+				stateAndMoves.clear();
+			}
+		}
 		for(int i = 0; i < p.size(); i++){
 			state = originalState.placePiece(p.get(i), player);
 			int num = minValue(state, depth, alpha, beta);
@@ -301,7 +329,7 @@ public class DoYouEvenConnectAI extends CKPlayer {
 				maxP = p.get(i);
 			}
 		}
-		System.out.println(maxP);
+//		System.out.println(maxP);
 		return maxP;
 
 	}
@@ -345,22 +373,24 @@ public class DoYouEvenConnectAI extends CKPlayer {
 	//	}
 
 	public int minValue(BoardModel state, int depth, int alpha, int beta){
-		if(depth == 0){
-			int h = h(state);
-			if (h > alpha) {
-				alpha = h;
-			}
-			return h;
+		if(((System.currentTimeMillis()-startTime)/1000) > 4){
+			//System.out.println("Stopped because of time");
+			return h(state);
 		}
+//		if(depth == 0){
+//			int h = h(state);
+//			if (h > alpha) {
+//				alpha = h;
+//			}
+//			return h;
+//		}
 		int v = Integer.MAX_VALUE;
 		List<Point> p = possiblePoints(state);
 		if(p.size() == 0){
 			return h(state);
 		}
 		BoardModel originalState = state.clone();
-
 		p = findMaxReturnList(originalState, p);
-
 		for(int i = 0; i < p.size(); i++){
 			if (v < beta) {
 				beta = v;
@@ -369,19 +399,24 @@ public class DoYouEvenConnectAI extends CKPlayer {
 				break;
 			}
 			state = originalState.placePiece(p.get(i), oppPlayer(player));
+			stateAndMoves.put(originalState, p.get(i));
 			v = Math.min(v, maxValue(state, depth-1, alpha, beta));
 		}
 		return v;
 	}
 
 	public int maxValue(BoardModel state, int depth, int alpha, int beta){
-		if(depth == 0){
-			int h = h(state);
-			if (h > alpha) {
-				alpha = h;
-			}
-			return h;
+		if(((System.currentTimeMillis()-startTime)/1000) > 4){
+			//System.out.println("Stopped because of time");
+			return h(state);
 		}
+//		if(depth == 0){
+//			int h = h(state);
+//			if (h > alpha) {
+//				alpha = h;
+//			}
+//			return h;
+//		}
 		int v = Integer.MIN_VALUE;
 		
 		List<Point> p = possiblePoints(state);
@@ -400,6 +435,7 @@ public class DoYouEvenConnectAI extends CKPlayer {
 				break;
 			}
 			state = originalState.placePiece(p.get(i), player);
+			stateAndMoves.put(state, p.get(i));
 			v = Math.max(v, minValue(state, depth-1, alpha, beta));
 		}
 		return v;
